@@ -6,27 +6,49 @@
 <title>Hobuapp</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
-body{font-family:Arial;margin:0;background:#f8fafc;color:#0f172a}
-.wrap{padding:16px;max-width:900px;margin:auto}
-.card{background:white;border:1px solid #e2e8f0;border-radius:18px;padding:14px;margin:12px 0;overflow:hidden}
-input,button{width:100%;padding:12px;margin:6px 0;border-radius:12px;border:1px solid #cbd5e1;font-size:16px;box-sizing:border-box}
-button{background:#111827;color:white;font-weight:bold}
-button.light{background:white;color:#111827;border:1px solid #cbd5e1}
-.muted{color:#64748b;font-size:13px}
-.horseName{font-size:20px;font-weight:900}
+:root{
+  --bg:#f8fafc;--card:#fff;--text:#0f172a;--muted:#64748b;--line:#e2e8f0;
+  --dark:#111827;--soft:#f1f5f9;--danger:#dc2626;
+}
+*{box-sizing:border-box}
+body{margin:0;font-family:Arial,sans-serif;background:var(--bg);color:var(--text)}
+.wrap{padding:16px;max-width:980px;margin:auto}
+.card{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:14px;margin:12px 0;box-shadow:0 1px 2px rgba(15,23,42,.04);overflow:hidden}
+h1,h2,h3{margin:6px 0 12px}
+input,select,button{width:100%;padding:12px;margin:6px 0;border-radius:12px;border:1px solid #cbd5e1;font-size:16px}
+button{background:var(--dark);color:white;font-weight:800;border:none;cursor:pointer}
+button.light{background:white;color:var(--dark);border:1px solid #cbd5e1}
+button.danger{background:var(--danger)}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+@media(max-width:720px){.grid{grid-template-columns:1fr}}
+.muted{color:var(--muted);font-size:13px}
+.top{display:flex;justify-content:space-between;gap:10px;align-items:center}
+.top button{width:auto;padding:9px 12px}
+.horseCard{cursor:pointer}
+.horseName{font-size:21px;font-weight:900}
+.pill{display:inline-block;background:var(--soft);padding:5px 10px;border-radius:999px;font-size:12px;margin-top:8px}
+.row{display:flex;justify-content:space-between;gap:12px;border-bottom:1px solid #f1f5f9;padding:9px 0}
+.row:last-child{border-bottom:none}
+.actions{display:flex;gap:8px;flex-wrap:wrap}
+.actions button{width:auto;flex:1;min-width:110px}
+.search{margin-bottom:10px}
 .pedigreeWrap{width:100%;overflow-x:auto;border:1px solid #cbd5e1;border-radius:16px;background:white;-webkit-overflow-scrolling:touch}
 .pedigreeTable{border-collapse:collapse;width:720px;min-width:720px;table-layout:fixed;font-size:12px}
-.pedigreeTable td{border:1px solid #94a3b8;padding:8px;text-align:center;vertical-align:middle;background:#f8fafc;width:180px;word-break:break-word}
+.pedigreeTable td{border:1px solid #94a3b8;padding:8px;text-align:center;vertical-align:middle;background:#f8fafc;width:180px;word-break:break-word;cursor:pointer}
 .pedigreeTable tr:nth-child(even) td{background:white}
 .pedName{font-weight:900;text-transform:uppercase}
-.pedHint{font-size:12px;color:#64748b;margin-bottom:8px}
+.pedLabel{font-size:11px;color:#64748b;margin-bottom:4px}
+.msg{padding:10px;border-radius:10px;background:#e0f2fe;color:#075985;white-space:pre-wrap}
+.err{background:#fee2e2;color:#991b1b}
 </style>
 </head>
 <body>
 <div class="wrap">
+
 <h1>🐎 Hobuapp</h1>
 
 <div id="auth" class="card">
+  <h3>Sisselogimine</h3>
   <input id="email" placeholder="Email">
   <input id="password" type="password" placeholder="Parool">
   <button onclick="login()">Logi sisse</button>
@@ -35,32 +57,66 @@ button.light{background:white;color:#111827;border:1px solid #cbd5e1}
 </div>
 
 <div id="app" style="display:none">
-  <button class="light" onclick="logout()">Logi välja</button>
+  <div class="card top">
+    <div>
+      <b id="userEmail"></b>
+      <div class="muted">Pilveversioon v6</div>
+    </div>
+    <button class="light" onclick="logout()">Logi välja</button>
+  </div>
 
   <div id="listView">
     <div class="card">
       <h3>Lisa hobune</h3>
-      <input id="horseName" placeholder="Hobuse nimi">
+      <div class="grid">
+        <input id="name" placeholder="Nimi">
+        <select id="sex">
+          <option value="">Sugu</option>
+          <option>Mära</option>
+          <option>Täkk</option>
+          <option>Ruun</option>
+        </select>
+        <input id="birth_date" type="text" placeholder="Sünnikuupäev" onfocus="this.type='date'" onblur="if(!this.value)this.type='text'">
+        <input id="ueln" placeholder="UELN">
+        <input id="color" placeholder="Praegune värvus">
+        <input id="birth_color" placeholder="Sünnivärvus">
+      </div>
       <button onclick="addHorse()">Lisa hobune</button>
     </div>
 
-    <div id="horses"></div>
+    <div class="card">
+      <h3>Hobused</h3>
+      <input class="search" id="search" placeholder="Otsi hobust..." oninput="renderHorses()">
+      <div id="horses"></div>
+    </div>
   </div>
 
   <div id="detailView" style="display:none">
-    <button class="light" onclick="backToList()">← Tagasi</button>
+    <button class="light" onclick="backToList()">← Tagasi hobuste nimekirja</button>
 
     <div class="card">
-      <div class="horseName" id="detailName"></div>
+      <div class="top">
+        <div>
+          <div class="horseName" id="detailName"></div>
+          <div class="muted" id="detailSub"></div>
+        </div>
+      </div>
+      <div id="detail"></div>
+
+      <div class="actions">
+        <button class="light" onclick="editHorse()">Muuda</button>
+        <button class="danger" onclick="deleteHorse()">Kustuta</button>
+      </div>
     </div>
 
     <div class="card">
       <h3>🧬 Sugupuu</h3>
-      <div class="pedHint">Libista tabelit küljele. Kliki lahtrile, et muuta.</div>
+      <div class="muted" style="margin-bottom:8px">Libista tabelit küljele. Kliki lahtrile, et muuta.</div>
       <div id="pedigreeBox"></div>
     </div>
   </div>
 </div>
+
 </div>
 
 <script>
@@ -73,6 +129,8 @@ let user=null;
 let horses=[];
 let selectedHorse=null;
 let pedigree={};
+
+const $ = id => document.getElementById(id);
 
 const labels={
   self:"Hobune",
@@ -92,24 +150,26 @@ const labels={
   dam_dam_dam:"Ema ema ema"
 };
 
+function ageText(d){
+  if(!d) return "vanus teadmata";
+  const b=new Date(d), n=new Date();
+  if(isNaN(b)) return "vanus teadmata";
+  let m=(n.getFullYear()-b.getFullYear())*12+n.getMonth()-b.getMonth();
+  if(n.getDate()<b.getDate()) m--;
+  if(m<0) m=0;
+  return `${Math.floor(m/12)} a ${m%12} k`;
+}
+
 async function register(){
-  const {error}=await client.auth.signUp({
-    email:email.value,
-    password:password.value
-  });
+  const {error}=await client.auth.signUp({email:email.value,password:password.value});
   msg.innerText=error?error.message:"Konto loodud. Logi sisse.";
 }
 
 async function login(){
-  const {data,error}=await client.auth.signInWithPassword({
-    email:email.value,
-    password:password.value
-  });
+  const {data,error}=await client.auth.signInWithPassword({email:email.value,password:password.value});
   if(error){msg.innerText=error.message;return;}
   user=data.user;
-  auth.style.display="none";
-  app.style.display="block";
-  loadHorses();
+  showApp();
 }
 
 async function logout(){
@@ -117,44 +177,128 @@ async function logout(){
   location.reload();
 }
 
+async function checkSession(){
+  const {data}=await client.auth.getSession();
+  if(data.session?.user){user=data.session.user;showApp();}
+}
+checkSession();
+
+function showApp(){
+  auth.style.display="none";
+  app.style.display="block";
+  userEmail.innerText=user.email;
+  loadHorses();
+}
+
 async function addHorse(){
-  if(!horseName.value.trim()) return;
+  const n=$("name").value.trim();
+  if(!n){alert("Nimi on kohustuslik");return;}
+
   const {error}=await client.from("horses").insert({
     user_id:user.id,
-    name:horseName.value.trim()
+    name:n,
+    sex:$("sex").value||null,
+    birth_date:$("birth_date").value||null,
+    ueln:$("ueln").value||null,
+    color:$("color").value||null,
+    birth_color:$("birth_color").value||null
   });
+
   if(error){alert(error.message);return;}
-  horseName.value="";
+
+  ["name","birth_date","ueln","color","birth_color"].forEach(id=>$(id).value="");
+  $("sex").value="";
   loadHorses();
 }
 
 async function loadHorses(){
   const {data,error}=await client.from("horses")
     .select("*")
-    .eq("user_id",user.id);
+    .eq("user_id",user.id)
+    .order("created_at",{ascending:false});
 
-  if(error){alert(error.message);return;}
-
+  if(error){horses.innerHTML=`<div class="msg err">${error.message}</div>`;return;}
   horses=data||[];
-  document.getElementById("horses").innerHTML=horses.map(h=>`
-    <div class="card" onclick="openHorse('${h.id}')">
+  renderHorses();
+}
+
+function renderHorses(){
+  const q=($("search")?.value||"").toLowerCase();
+  const filtered=horses.filter(h=>(h.name||"").toLowerCase().includes(q));
+
+  $("horses").innerHTML=filtered.map(h=>`
+    <div class="card horseCard" onclick="openHorse('${h.id}')">
       <div class="horseName">${h.name||"Nimetu"}</div>
-      <div class="muted">Ava hobuse vaade →</div>
+      <div class="muted">${ageText(h.birth_date)} · ${h.sex||"sugu määramata"}</div>
+      <div class="muted">UELN: ${h.ueln||"—"}</div>
+      <div class="muted">Värvus: ${h.color||"—"} · Sünnivärvus: ${h.birth_color||"—"}</div>
+      <span class="pill">Ava hobuse vaade →</span>
     </div>
-  `).join("") || "<p>Hobuseid pole veel.</p>";
+  `).join("") || "<p class='muted'>Hobuseid pole.</p>";
 }
 
 async function openHorse(id){
   selectedHorse=horses.find(h=>h.id===id);
+  if(!selectedHorse)return;
+
   listView.style.display="none";
   detailView.style.display="block";
   detailName.innerText=selectedHorse.name||"Nimetu";
+  detailSub.innerText=`${ageText(selectedHorse.birth_date)} · ${selectedHorse.sex||"sugu määramata"}`;
+
+  renderDetail();
   await loadPedigree();
+  window.scrollTo({top:0,behavior:"smooth"});
+}
+
+function renderDetail(){
+  detail.innerHTML=`
+    <div class="row"><span>Sugu</span><b>${selectedHorse.sex||"—"}</b></div>
+    <div class="row"><span>Sünnikuupäev</span><b>${selectedHorse.birth_date||"—"}</b></div>
+    <div class="row"><span>Vanus</span><b>${ageText(selectedHorse.birth_date)}</b></div>
+    <div class="row"><span>UELN</span><b>${selectedHorse.ueln||"—"}</b></div>
+    <div class="row"><span>Värvus</span><b>${selectedHorse.color||"—"}</b></div>
+    <div class="row"><span>Sünnivärvus</span><b>${selectedHorse.birth_color||"—"}</b></div>
+  `;
 }
 
 function backToList(){
   detailView.style.display="none";
   listView.style.display="block";
+  selectedHorse=null;
+}
+
+async function editHorse(){
+  if(!selectedHorse)return;
+  const name=prompt("Nimi",selectedHorse.name||""); if(name===null)return;
+  const sex=prompt("Sugu: Mära / Täkk / Ruun",selectedHorse.sex||""); if(sex===null)return;
+  const birth_date=prompt("Sünnikuupäev YYYY-MM-DD",selectedHorse.birth_date||""); if(birth_date===null)return;
+  const ueln=prompt("UELN",selectedHorse.ueln||""); if(ueln===null)return;
+  const color=prompt("Praegune värvus",selectedHorse.color||""); if(color===null)return;
+  const birth_color=prompt("Sünnivärvus",selectedHorse.birth_color||""); if(birth_color===null)return;
+
+  const {error}=await client.from("horses")
+    .update({name,sex:sex||null,birth_date:birth_date||null,ueln:ueln||null,color:color||null,birth_color:birth_color||null})
+    .eq("id",selectedHorse.id)
+    .eq("user_id",user.id);
+
+  if(error){alert(error.message);return;}
+  await loadHorses();
+  openHorse(selectedHorse.id);
+}
+
+async function deleteHorse(){
+  if(!selectedHorse)return;
+  if(!confirm("Kas kustutan hobuse?"))return;
+
+  const {error}=await client.from("horses")
+    .delete()
+    .eq("id",selectedHorse.id)
+    .eq("user_id",user.id);
+
+  if(error){alert(error.message);return;}
+  await loadHorses();
+  backToList();
 }
 
 async function loadPedigree(){
@@ -163,7 +307,7 @@ async function loadPedigree(){
     .eq("user_id",user.id)
     .eq("horse_id",selectedHorse.id);
 
-  if(error){alert(error.message);return;}
+  if(error){pedigreeBox.innerHTML=`<div class="msg err">${error.message}</div>`;return;}
 
   pedigree={};
   (data||[]).forEach(p=>pedigree[p.position_key]=p.name);
@@ -173,7 +317,7 @@ async function loadPedigree(){
 
 function cell(key,rowspan){
   return `<td ${rowspan?`rowspan="${rowspan}"`:""} onclick="editPed('${key}')">
-    <div class="muted">${labels[key]||""}</div>
+    <div class="pedLabel">${labels[key]||""}</div>
     <div class="pedName">${pedigree[key]||"—"}</div>
   </td>`;
 }
@@ -182,41 +326,23 @@ function renderPedigree(){
   pedigreeBox.innerHTML=`
   <div class="pedigreeWrap">
     <table class="pedigreeTable">
-      <tr>
-        ${cell("self",8)}
-        ${cell("sire",4)}
-        ${cell("sire_sire",2)}
-        ${cell("sire_sire_sire",1)}
-      </tr>
+      <tr>${cell("self",8)}${cell("sire",4)}${cell("sire_sire",2)}${cell("sire_sire_sire",1)}</tr>
       <tr>${cell("sire_sire_dam",1)}</tr>
-      <tr>
-        ${cell("sire_dam",2)}
-        ${cell("sire_dam_sire",1)}
-      </tr>
+      <tr>${cell("sire_dam",2)}${cell("sire_dam_sire",1)}</tr>
       <tr>${cell("sire_dam_dam",1)}</tr>
-      <tr>
-        ${cell("dam",4)}
-        ${cell("dam_sire",2)}
-        ${cell("dam_sire_sire",1)}
-      </tr>
+      <tr>${cell("dam",4)}${cell("dam_sire",2)}${cell("dam_sire_sire",1)}</tr>
       <tr>${cell("dam_sire_dam",1)}</tr>
-      <tr>
-        ${cell("dam_dam",2)}
-        ${cell("dam_dam_sire",1)}
-      </tr>
+      <tr>${cell("dam_dam",2)}${cell("dam_dam_sire",1)}</tr>
       <tr>${cell("dam_dam_dam",1)}</tr>
     </table>
   </div>`;
 }
 
 async function editPed(key){
-  if(key==="self"){
-    alert("Hobuse nime muuda hiljem hobuse üldandmetest.");
-    return;
-  }
+  if(key==="self"){alert("Hobuse nime muuda hobuse üldandmetest.");return;}
 
   const name=prompt(labels[key]||key,pedigree[key]||"");
-  if(name===null) return;
+  if(name===null)return;
 
   const {data:existing}=await client.from("horse_pedigree")
     .select("id")
@@ -227,9 +353,7 @@ async function editPed(key){
 
   let error;
   if(existing){
-    ({error}=await client.from("horse_pedigree")
-      .update({name})
-      .eq("id",existing.id));
+    ({error}=await client.from("horse_pedigree").update({name}).eq("id",existing.id));
   }else{
     ({error}=await client.from("horse_pedigree").insert({
       user_id:user.id,
