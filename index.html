@@ -1,31 +1,205 @@
 <!DOCTYPE html>
-<html>
+<html lang="et">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Hobuapp</title>
 <style>
-body{
-  font-family:Arial;
-  padding:40px;
-  background:#f8fafc;
-}
-.card{
-  background:white;
-  border:1px solid #ddd;
-  border-radius:16px;
-  padding:20px;
-  max-width:500px;
-}
+body{font-family:Arial;margin:0;background:#f8fafc;color:#0f172a}
+.wrap{padding:16px;max-width:900px;margin:auto}
+.card{background:white;border:1px solid #e2e8f0;border-radius:18px;padding:14px;margin-top:12px}
+input,select,button{width:100%;box-sizing:border-box;padding:12px;margin:6px 0;border-radius:12px;border:1px solid #cbd5e1;font-size:16px}
+button{background:#0f172a;color:white;font-weight:700;border:none}
+button.light{background:white;color:#0f172a;border:1px solid #cbd5e1}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+@media(max-width:700px){.grid{grid-template-columns:1fr}}
+.muted{color:#64748b;font-size:13px}
+.horseName{font-size:20px;font-weight:900}
+.row{display:flex;justify-content:space-between;border-bottom:1px solid #f1f5f9;padding:8px 0}
 </style>
 </head>
 <body>
+<div class="wrap">
+<h2>🐎 Hobuapp</h2>
 
-<div class="card">
-  <h1>🐎 Hobuapp</h1>
-  <p>Päris pilveäpp on nüüd käivitamisel 🚀</p>
-  <p>GitHub + Vercel ühendus töötab.</p>
+<div id="auth" class="card">
+  <h3>Sisselogimine</h3>
+  <input id="email" placeholder="Email">
+  <input id="password" type="password" placeholder="Parool">
+  <button id="signin">Logi sisse</button>
+  <button class="light" id="signup">Registreeri</button>
+  <p id="msg" class="muted"></p>
 </div>
 
+<div id="app" style="display:none">
+  <div class="card">
+    <b id="userEmail"></b>
+    <button class="light" id="logout">Logi välja</button>
+  </div>
+
+  <div id="listView">
+    <div class="card">
+      <h3>Lisa hobune</h3>
+      <div class="grid">
+        <input id="name" placeholder="Nimi">
+        <select id="sex">
+          <option value="">Sugu</option>
+          <option>Mära</option>
+          <option>Täkk</option>
+          <option>Ruun</option>
+        </select>
+        <input id="birth_date" type="date">
+        <input id="ueln" placeholder="UELN">
+        <input id="color" placeholder="Värvus">
+        <input id="birth_color" placeholder="Sünnivärvus">
+      </div>
+      <button id="addHorse">Lisa hobune</button>
+    </div>
+
+    <div class="card">
+      <h3>Hobused</h3>
+      <div id="horses"></div>
+    </div>
+  </div>
+
+  <div id="detailView" style="display:none">
+    <button class="light" id="back">← Tagasi</button>
+    <div class="card">
+      <h2 id="detailName"></h2>
+      <div id="detail"></div>
+    </div>
+  </div>
+</div>
+</div>
+
+<script type="module">
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+
+const supabase = createClient(
+  "https://dgvuuwuvnfsifwgrbory.supabase.co",
+  "sb_publishable_IT_QqzN5KGNHYJEVBmxouw_-NmtleIY"
+);
+
+let user = null;
+let horses = [];
+let selected = null;
+
+const $ = id => document.getElementById(id);
+
+function ageText(d){
+  if(!d) return "vanus teadmata";
+  const b = new Date(d), n = new Date();
+  let m = (n.getFullYear()-b.getFullYear())*12 + n.getMonth()-b.getMonth();
+  if(n.getDate()<b.getDate()) m--;
+  return `${Math.floor(m/12)} a ${m%12} k`;
+}
+
+async function check(){
+  const {data} = await supabase.auth.getSession();
+  if(data.session?.user){
+    user = data.session.user;
+    showApp();
+  }
+}
+
+async function signIn(){
+  const {data,error} = await supabase.auth.signInWithPassword({
+    email:$("email").value,
+    password:$("password").value
+  });
+  if(error){ $("msg").innerText = error.message; return; }
+  user = data.user;
+  showApp();
+}
+
+async function signUp(){
+  const {error} = await supabase.auth.signUp({
+    email:$("email").value,
+    password:$("password").value
+  });
+  $("msg").innerText = error ? error.message : "Konto loodud. Kontrolli vajadusel emaili.";
+}
+
+async function logout(){
+  await supabase.auth.signOut();
+  location.reload();
+}
+
+function showApp(){
+  $("auth").style.display="none";
+  $("app").style.display="block";
+  $("userEmail").innerText=user.email;
+  loadHorses();
+}
+
+async function loadHorses(){
+  const {data,error} = await supabase.from("horses")
+    .select("*")
+    .eq("user_id", user.id)
+    .order("created_at", {ascending:false});
+
+  if(error){ $("horses").innerText = error.message; return; }
+
+  horses = data || [];
+  $("horses").innerHTML = horses.map(h=>`
+    <div class="card" onclick="window.openHorse('${h.id}')">
+      <div class="horseName">${h.name || "Nimetu"}</div>
+      <div class="muted">${ageText(h.birth_date)} · ${h.sex || "sugu määramata"}</div>
+      <div class="muted">UELN: ${h.ueln || "—"}</div>
+      <div class="muted">Värvus: ${h.color || "—"} · Sünnivärvus: ${h.birth_color || "—"}</div>
+    </div>
+  `).join("") || "<p>Hobuseid pole veel.</p>";
+}
+
+async function addHorse(){
+  const name = $("name").value.trim();
+  if(!name){ alert("Nimi on kohustuslik"); return; }
+
+  const {error} = await supabase.from("horses").insert({
+    user_id:user.id,
+    name,
+    sex:$("sex").value || null,
+    birth_date:$("birth_date").value || null,
+    ueln:$("ueln").value || null,
+    color:$("color").value || null,
+    birth_color:$("birth_color").value || null
+  });
+
+  if(error){ alert(error.message); return; }
+
+  ["name","birth_date","ueln","color","birth_color"].forEach(id=>$(id).value="");
+  $("sex").value="";
+  loadHorses();
+}
+
+window.openHorse = function(id){
+  selected = horses.find(h=>h.id===id);
+  if(!selected) return;
+
+  $("listView").style.display="none";
+  $("detailView").style.display="block";
+  $("detailName").innerText = selected.name || "Nimetu";
+
+  $("detail").innerHTML = `
+    <div class="row"><span>Sugu</span><b>${selected.sex || "—"}</b></div>
+    <div class="row"><span>Sünnikuupäev</span><b>${selected.birth_date || "—"}</b></div>
+    <div class="row"><span>Vanus</span><b>${ageText(selected.birth_date)}</b></div>
+    <div class="row"><span>UELN</span><b>${selected.ueln || "—"}</b></div>
+    <div class="row"><span>Värvus</span><b>${selected.color || "—"}</b></div>
+    <div class="row"><span>Sünnivärvus</span><b>${selected.birth_color || "—"}</b></div>
+  `;
+}
+
+$("signin").onclick = signIn;
+$("signup").onclick = signUp;
+$("logout").onclick = logout;
+$("addHorse").onclick = addHorse;
+$("back").onclick = () => {
+  $("detailView").style.display="none";
+  $("listView").style.display="block";
+};
+
+check();
+</script>
 </body>
 </html>
