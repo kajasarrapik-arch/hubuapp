@@ -505,6 +505,17 @@ async function loadPedigree(){
 }
 
 function cellForPed(ped,key,rowspan,editable=true){
+  if(editable && window.pedigreeEditMode && key!=="self"){
+    return `<td ${rowspan?`rowspan="${rowspan}"`:""}>
+      <div class="pedLabel">${labels[key]||""}</div>
+      <input
+        value="${ped[key]||""}"
+        placeholder="Nimi"
+        style="width:100%;padding:6px;border-radius:8px;border:1px solid #cbd5e1"
+        onchange="savePedField('${key}', this.value)"
+      >
+    </td>`;
+  }
 
   const click=editable
     ? `onclick="editPed('${key}')"`
