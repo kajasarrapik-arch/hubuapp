@@ -528,8 +528,12 @@ function cellForPed(ped,key,rowspan,editable=true){
 }
 
 function renderPedigree(){
-  pedigreeBox.innerHTML=
-    renderHorsePedigreeTable(pedigree,true);
+  pedigreeBox.innerHTML=`
+    <button class="light" onclick="togglePedigreeEdit()">
+      ${window.pedigreeEditMode ? "Valmis" : "Muuda sugupuud"}
+    </button>
+    ${renderHorsePedigreeTable(pedigree,true)}
+  `;
 }
 
 function renderHorsePedigreeTable(ped,editable=true){
