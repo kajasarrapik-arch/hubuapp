@@ -619,3 +619,163 @@ function renderFoalPedigreeTable(ped){
     </table>
   </div>`;
 }
+async function editPed(key){
+
+  if(key==="self"){
+    alert("Hobuse nime muuda hobuse üldandmetest.");
+    return;
+  }
+
+  const name=prompt(
+    labels[key]||key,
+    pedigree[key]||""
+  );
+
+  if(name===null)return;
+
+  const {data:existing}=await client
+    .from("horse_pedigree")
+    .select("id")
+    .eq("user_id",user.id)
+    .eq("horse_id",selectedHorse.id)
+    .eq("position_key",key)
+    .maybeSingle();
+
+  let error;
+
+  if(existing){
+    ({error}=await client
+      .from("horse_pedigree")
+      .update({name})
+      .eq("id",existing.id));
+  }else{
+    ({error}=await client
+      .from("horse_pedigree")
+      .insert({
+        user_id:user.id,
+        horse_id:selectedHorse.id,
+        position_key:key,
+        name
+      }));
+  }
+
+  if(error){
+    alert(error.message);
+    return;
+  }
+
+  await loadPedigree();
+}
+
+function renderBreedingLists(){
+
+  if(!stallionList || !mareList)return;
+
+  const stallions=horses.filter(h=>h.sex==="Täkk");
+  const mares=horses.filter(h=>h.sex==="Mära");
+
+  stallionList.innerHTML=stallions.length
+    ? stallions.map(h=>`
+      <label>
+        <input type="radio" name="stallion" value="${h.id}">
+        <b>${h.name||"Nimetu"}</b>
+        <div class="muted">
+          ${h.ueln||"—"} · ${h.color||"—"}
+        </div>
+      </label>
+    `).join("")
+    : "<p class='muted'>Ühtegi täkku pole. Lisa hobusele sugu Täkk.</p>";
+
+  mareList.innerHTML=mares.length
+    ? mares.map(h=>`
+      <label>
+        <input type="radio" name="mare" value="${h.id}">
+        <b>${h.name||"Nimetu"}</b>
+        <div class="muted">
+          ${h.ueln||"—"} · ${h.color||"—"}
+        </div>
+      </label>
+    `).join("")
+    : "<p class='muted'>Ühtegi mära pole. Lisa hobusele sugu Mära.</p>";
+}
+
+async function getPedigreeForHorse(horse){
+
+  const {data,error}=await client
+    .from("horse_pedigree")
+    .select("*")
+    .eq("user_id",user.id)
+    .eq("horse_id",horse.id);
+
+  if(error){
+    throw error;
+  }
+
+  const ped={
+    self:horse.name||"Nimetu"
+  };
+
+  (data||[]).forEach(p=>{
+    ped[p.position_key]=p.name;
+  });
+
+  return ped;
+}
+
+async function combineBreeding(){
+
+  const stallionId=
+    document.querySelector('input[name="stallion"]:checked')?.value;
+
+  const mareId=
+    document.querySelector('input[name="mare"]:checked')?.value;
+
+  if(!stallionId||!mareId){
+    foalResult.innerHTML="Vali täkk ja mära.";
+    return;
+  }
+
+  const stallion=horses.find(h=>h.id===stallionId);
+  const mare=horses.find(h=>h.id===mareId);
+
+  try{
+
+    const sp=await getPedigreeForHorse(stallion);
+    const mp=await getPedigreeForHorse(mare);
+
+    const foal={
+      sire:stallion.name||"—",
+      dam:mare.name||"—",
+
+      sire_sire:sp.sire||"—",
+      sire_dam:sp.dam||"—",
+      sire_sire_sire:sp.sire_sire||"—",
+      sire_sire_dam:sp.sire_dam||"—",
+      sire_dam_sire:sp.dam_sire||"—",
+      sire_dam_dam:sp.dam_dam||"—",
+
+      dam_sire:mp.sire||"—",
+      dam_dam:mp.dam||"—",
+      dam_sire_sire:mp.sire_sire||"—",
+      dam_sire_dam:mp.sire_dam||"—",
+      dam_dam_sire:mp.dam_sire||"—",
+      dam_dam_dam:mp.dam_dam||"—"
+    };
+
+    foalResult.innerHTML=`
+      <div class="card" style="margin-top:0">
+        <b>Isa:</b> ${stallion.name||"—"}<br>
+        <b>Ema:</b> ${mare.name||"—"}
+      </div>
+      ${renderFoalPedigreeTable(foal)}
+    `;
+
+  }catch(e){
+
+    foalResult.innerHTML=
+      `<div class="msg err">${e.message}</div>`;
+  }
+}
+</script>
+</body>
+</html>
