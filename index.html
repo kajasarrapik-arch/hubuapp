@@ -6,30 +6,59 @@
 <title>Hobuapp</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
-body{font-family:Arial;padding:20px;background:#f8fafc}
+body{font-family:Arial;padding:20px;background:#f8fafc;color:#0f172a}
 .card{background:white;border:1px solid #ddd;border-radius:14px;padding:16px;margin:12px 0}
-input,button{width:100%;padding:12px;margin:6px 0;border-radius:10px;border:1px solid #ccc;font-size:16px}
+input,button{width:100%;padding:12px;margin:6px 0;border-radius:10px;border:1px solid #ccc;font-size:16px;box-sizing:border-box}
 button{background:#111827;color:white;font-weight:bold}
+button.light{background:white;color:#111827}
+.muted{color:#64748b;font-size:13px}
+.horse{cursor:pointer}
+.ped{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;overflow-x:auto}
+.ped div{border:1px solid #cbd5e1;border-radius:10px;padding:10px;background:#f8fafc;text-align:center;min-width:120px}
 </style>
 </head>
 <body>
 
 <h1>🐎 Hobuapp</h1>
 
-<div class="card">
+<div id="auth" class="card">
   <input id="email" placeholder="Email">
   <input id="password" type="password" placeholder="Parool">
   <button onclick="login()">Logi sisse</button>
-  <button onclick="register()">Registreeri</button>
+  <button class="light" onclick="register()">Registreeri</button>
   <p id="msg"></p>
 </div>
 
 <div id="app" style="display:none">
   <div class="card">
-    <input id="horseName" placeholder="Hobuse nimi">
-    <button onclick="addHorse()">Lisa hobune</button>
+    <button class="light" onclick="logout()">Logi välja</button>
   </div>
-  <div id="horses"></div>
+
+  <div id="listView">
+    <div class="card">
+      <h3>Lisa hobune</h3>
+      <input id="horseName" placeholder="Hobuse nimi">
+      <button onclick="addHorse()">Lisa hobune</button>
+    </div>
+
+    <h3>Hobused</h3>
+    <div id="horses"></div>
+  </div>
+
+  <div id="detailView" style="display:none">
+    <button class="light" onclick="backToList()">← Tagasi</button>
+
+    <div class="card">
+      <h2 id="detailName"></h2>
+      <p class="muted">Hobuse detailvaade</p>
+    </div>
+
+    <div class="card">
+      <h3>🧬 Sugupuu</h3>
+      <p class="muted">Kliki lahtrile, et nime lisada või muuta.</p>
+      <div id="pedigree" class="ped"></div>
+    </div>
+  </div>
 </div>
 
 <script>
@@ -39,6 +68,18 @@ const client = supabase.createClient(
 );
 
 let user = null;
+let horses = [];
+let selectedHorse = null;
+let pedigree = {};
+
+const pedLabels = {
+  sire_sire: "Isa isa",
+  sire: "Isa",
+  sire_dam: "Isa ema",
+  dam_sire: "Ema isa",
+  dam: "Ema",
+  dam_dam: "Ema ema"
+};
 
 async function register(){
   const email=document.getElementById("email").value;
@@ -56,8 +97,14 @@ async function login(){
     return;
   }
   user=data.user;
+  document.getElementById("auth").style.display="none";
   document.getElementById("app").style.display="block";
   loadHorses();
+}
+
+async function logout(){
+  await client.auth.signOut();
+  location.reload();
 }
 
 async function addHorse(){
@@ -78,9 +125,85 @@ async function loadHorses(){
 
   if(error){ alert(error.message); return; }
 
+  horses=data;
   document.getElementById("horses").innerHTML=data.map(h=>`
-    <div class="card"><b>${h.name}</b></div>
+    <div class="card horse" onclick="openHorse('${h.id}')">
+      <b>${h.name || "Nimetu"}</b>
+      <div class="muted">Ava hobuse vaade →</div>
+    </div>
   `).join("");
+}
+
+async function openHorse(id){
+  selectedHorse = horses.find(h=>h.id===id);
+  document.getElementById("listView").style.display="none";
+  document.getElementById("detailView").style.display="block";
+  document.getElementById("detailName").innerText=selectedHorse.name || "Nimetu";
+  await loadPedigree();
+}
+
+function backToList(){
+  document.getElementById("detailView").style.display="none";
+  document.getElementById("listView").style.display="block";
+}
+
+async function loadPedigree(){
+  const {data,error}=await client.from("horse_pedigree")
+    .select("*")
+    .eq("horse_id",selectedHorse.id)
+    .eq("user_id",user.id);
+
+  if(error){
+    alert("Sugupuu laadimine ebaõnnestus: " + error.message);
+    return;
+  }
+
+  pedigree={};
+  data.forEach(p=>pedigree[p.position_key]=p.name);
+  renderPedigree();
+}
+
+function renderPedigree(){
+  document.getElementById("pedigree").innerHTML = Object.keys(pedLabels).map(key=>`
+    <div onclick="editPedigree('${key}')">
+      <small>${pedLabels[key]}</small><br>
+      <b>${pedigree[key] || "—"}</b>
+    </div>
+  `).join("");
+}
+
+async function editPedigree(key){
+  const name=prompt(pedLabels[key], pedigree[key] || "");
+  if(name===null) return;
+
+  const {data:existing}=await client.from("horse_pedigree")
+    .select("id")
+    .eq("horse_id",selectedHorse.id)
+    .eq("user_id",user.id)
+    .eq("position_key",key)
+    .maybeSingle();
+
+  let error;
+
+  if(existing){
+    ({error}=await client.from("horse_pedigree")
+      .update({name})
+      .eq("id",existing.id));
+  }else{
+    ({error}=await client.from("horse_pedigree").insert({
+      user_id:user.id,
+      horse_id:selectedHorse.id,
+      position_key:key,
+      name
+    }));
+  }
+
+  if(error){
+    alert("Sugupuu salvestamine ebaõnnestus: " + error.message);
+    return;
+  }
+
+  await loadPedigree();
 }
 </script>
 
