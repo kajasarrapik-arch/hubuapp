@@ -630,7 +630,47 @@ async function editPed(key){
 
   await savePedField(key,name);
 }
+async function savePedField(key,name){
+  const {data:existing}=await client
+    .from("horse_pedigree")
+    .select("id")
+    .eq("user_id",user.id)
+    .eq("horse_id",selectedHorse.id)
+    .eq("position_key",key)
+    .maybeSingle();
 
+  let error;
+
+  if(existing){
+    ({error}=await client
+      .from("horse_pedigree")
+      .update({name})
+      .eq("id",existing.id));
+  }else{
+    ({error}=await client
+      .from("horse_pedigree")
+      .insert({
+        user_id:user.id,
+        horse_id:selectedHorse.id,
+        position_key:key,
+        name
+      }));
+  }
+
+  if(error){
+    alert(error.message);
+    return;
+  }
+
+  pedigree[key]=name;
+  renderPedigree();
+}
+
+function togglePedigreeEdit(){
+  window.pedigreeEditMode = !window.pedigreeEditMode;
+  renderPedigree();
+}
+  
 async function getPedigreeForHorse(horse){
 
   const {data,error}=await client
