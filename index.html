@@ -396,3 +396,226 @@ function backToList(){
   listView.style.display="block";
   selectedHorse=null;
 }
+async function editHorse(){
+
+  if(!selectedHorse)return;
+
+  const name=prompt(
+    "Nimi",
+    selectedHorse.name||""
+  );
+  if(name===null)return;
+
+  const sex=prompt(
+    "Sugu: Mära / Täkk / Ruun",
+    selectedHorse.sex||""
+  );
+  if(sex===null)return;
+
+  const birth_date=prompt(
+    "Sünnikuupäev YYYY-MM-DD",
+    selectedHorse.birth_date||""
+  );
+  if(birth_date===null)return;
+
+  const ueln=prompt(
+    "UELN",
+    selectedHorse.ueln||""
+  );
+  if(ueln===null)return;
+
+  const color=prompt(
+    "Praegune värvus",
+    selectedHorse.color||""
+  );
+  if(color===null)return;
+
+  const birth_color=prompt(
+    "Sünnivärvus",
+    selectedHorse.birth_color||""
+  );
+  if(birth_color===null)return;
+
+  const {error}=await client
+    .from("horses")
+    .update({
+      name,
+      sex:sex||null,
+      birth_date:birth_date||null,
+      ueln:ueln||null,
+      color:color||null,
+      birth_color:birth_color||null
+    })
+    .eq("id",selectedHorse.id)
+    .eq("user_id",user.id);
+
+  if(error){
+    alert(error.message);
+    return;
+  }
+
+  await loadHorses();
+  openHorse(selectedHorse.id);
+}
+
+async function deleteHorse(){
+
+  if(!selectedHorse)return;
+
+  if(!confirm("Kas kustutan hobuse?"))return;
+
+  const {error}=await client
+    .from("horses")
+    .delete()
+    .eq("id",selectedHorse.id)
+    .eq("user_id",user.id);
+
+  if(error){
+    alert(error.message);
+    return;
+  }
+
+  await loadHorses();
+  backToList();
+}
+
+async function loadPedigree(){
+
+  const {data,error}=await client
+    .from("horse_pedigree")
+    .select("*")
+    .eq("user_id",user.id)
+    .eq("horse_id",selectedHorse.id);
+
+  if(error){
+    pedigreeBox.innerHTML=
+      `<div class="msg err">${error.message}</div>`;
+    return;
+  }
+
+  pedigree={};
+
+  (data||[]).forEach(p=>{
+    pedigree[p.position_key]=p.name;
+  });
+
+  pedigree.self=selectedHorse.name||"Nimetu";
+
+  renderPedigree();
+}
+
+function cellForPed(ped,key,rowspan,editable=true){
+
+  const click=editable
+    ? `onclick="editPed('${key}')"`
+    : "";
+
+  return `<td ${rowspan?`rowspan="${rowspan}"`:""} ${click}>
+    <div class="pedLabel">${labels[key]||""}</div>
+    <div class="pedName">${ped[key]||"—"}</div>
+  </td>`;
+}
+
+function renderPedigree(){
+  pedigreeBox.innerHTML=
+    renderHorsePedigreeTable(pedigree,true);
+}
+
+function renderHorsePedigreeTable(ped,editable=true){
+
+  const c=(key,rowspan)=>
+    cellForPed(ped,key,rowspan,editable);
+
+  return `
+  <div class="pedigreeWrap">
+    <table class="pedigreeTable">
+      <tr>
+        ${c("self",8)}
+        ${c("sire",4)}
+        ${c("sire_sire",2)}
+        ${c("sire_sire_sire",1)}
+      </tr>
+
+      <tr>
+        ${c("sire_sire_dam",1)}
+      </tr>
+
+      <tr>
+        ${c("sire_dam",2)}
+        ${c("sire_dam_sire",1)}
+      </tr>
+
+      <tr>
+        ${c("sire_dam_dam",1)}
+      </tr>
+
+      <tr>
+        ${c("dam",4)}
+        ${c("dam_sire",2)}
+        ${c("dam_sire_sire",1)}
+      </tr>
+
+      <tr>
+        ${c("dam_sire_dam",1)}
+      </tr>
+
+      <tr>
+        ${c("dam_dam",2)}
+        ${c("dam_dam_sire",1)}
+      </tr>
+
+      <tr>
+        ${c("dam_dam_dam",1)}
+      </tr>
+    </table>
+  </div>`;
+}
+
+function renderFoalPedigreeTable(ped){
+
+  const c=(key,rowspan)=>
+    cellForPed(ped,key,rowspan,false);
+
+  return `
+  <div class="pedigreeWrap">
+    <table class="pedigreeTable">
+      <tr>
+        ${c("sire",4)}
+        ${c("sire_sire",2)}
+        ${c("sire_sire_sire",1)}
+      </tr>
+
+      <tr>
+        ${c("sire_sire_dam",1)}
+      </tr>
+
+      <tr>
+        ${c("sire_dam",2)}
+        ${c("sire_dam_sire",1)}
+      </tr>
+
+      <tr>
+        ${c("sire_dam_dam",1)}
+      </tr>
+
+      <tr>
+        ${c("dam",4)}
+        ${c("dam_sire",2)}
+        ${c("dam_sire_sire",1)}
+      </tr>
+
+      <tr>
+        ${c("dam_sire_dam",1)}
+      </tr>
+
+      <tr>
+        ${c("dam_dam",2)}
+        ${c("dam_dam_sire",1)}
+      </tr>
+
+      <tr>
+        ${c("dam_dam_dam",1)}
+      </tr>
+    </table>
+  </div>`;
+}
