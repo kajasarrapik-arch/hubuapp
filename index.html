@@ -620,83 +620,15 @@ function renderFoalPedigreeTable(ped){
   </div>`;
 }
 async function editPed(key){
-
   if(key==="self"){
     alert("Hobuse nime muuda hobuse üldandmetest.");
     return;
   }
 
-  const name=prompt(
-    labels[key]||key,
-    pedigree[key]||""
-  );
-
+  const name=prompt(labels[key]||key,pedigree[key]||"");
   if(name===null)return;
 
-  const {data:existing}=await client
-    .from("horse_pedigree")
-    .select("id")
-    .eq("user_id",user.id)
-    .eq("horse_id",selectedHorse.id)
-    .eq("position_key",key)
-    .maybeSingle();
-
-  let error;
-
-  if(existing){
-    ({error}=await client
-      .from("horse_pedigree")
-      .update({name})
-      .eq("id",existing.id));
-  }else{
-    ({error}=await client
-      .from("horse_pedigree")
-      .insert({
-        user_id:user.id,
-        horse_id:selectedHorse.id,
-        position_key:key,
-        name
-      }));
-  }
-
-  if(error){
-    alert(error.message);
-    return;
-  }
-
-  await loadPedigree();
-}
-
-function renderBreedingLists(){
-
-  if(!stallionList || !mareList)return;
-
-  const stallions=horses.filter(h=>h.sex==="Täkk");
-  const mares=horses.filter(h=>h.sex==="Mära");
-
-  stallionList.innerHTML=stallions.length
-    ? stallions.map(h=>`
-      <label>
-        <input type="radio" name="stallion" value="${h.id}">
-        <b>${h.name||"Nimetu"}</b>
-        <div class="muted">
-          ${h.ueln||"—"} · ${h.color||"—"}
-        </div>
-      </label>
-    `).join("")
-    : "<p class='muted'>Ühtegi täkku pole. Lisa hobusele sugu Täkk.</p>";
-
-  mareList.innerHTML=mares.length
-    ? mares.map(h=>`
-      <label>
-        <input type="radio" name="mare" value="${h.id}">
-        <b>${h.name||"Nimetu"}</b>
-        <div class="muted">
-          ${h.ueln||"—"} · ${h.color||"—"}
-        </div>
-      </label>
-    `).join("")
-    : "<p class='muted'>Ühtegi mära pole. Lisa hobusele sugu Mära.</p>";
+  await savePedField(key,name);
 }
 
 async function getPedigreeForHorse(horse){
