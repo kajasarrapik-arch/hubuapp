@@ -24,6 +24,9 @@ button.danger{background:var(--danger)}
 .muted{color:var(--muted);font-size:13px}
 .top{display:flex;justify-content:space-between;gap:10px;align-items:center}
 .top button{width:auto;padding:9px 12px}
+.tabs{display:flex;gap:8px;margin:12px 0}
+.tabs button{flex:1}
+.tabs button.off{background:white;color:#111827;border:1px solid #cbd5e1}
 .horseCard{cursor:pointer}
 .horseName{font-size:21px;font-weight:900}
 .pill{display:inline-block;background:var(--soft);padding:5px 10px;border-radius:999px;font-size:12px;margin-top:8px}
@@ -40,6 +43,8 @@ button.danger{background:var(--danger)}
 .pedLabel{font-size:11px;color:#64748b;margin-bottom:4px}
 .msg{padding:10px;border-radius:10px;background:#e0f2fe;color:#075985;white-space:pre-wrap}
 .err{background:#fee2e2;color:#991b1b}
+.selectRow label{display:block;padding:10px;border:1px solid #e2e8f0;border-radius:12px;margin:6px 0;background:#fff}
+.selectRow input{width:auto;margin-right:6px}
 </style>
 </head>
 <body>
@@ -60,59 +65,88 @@ button.danger{background:var(--danger)}
   <div class="card top">
     <div>
       <b id="userEmail"></b>
-      <div class="muted">Pilveversioon v6</div>
+      <div class="muted">Pilveversioon v7 · hobused + sugupuu + aretus</div>
     </div>
     <button class="light" onclick="logout()">Logi välja</button>
   </div>
 
-  <div id="listView">
-    <div class="card">
-      <h3>Lisa hobune</h3>
-      <div class="grid">
-        <input id="name" placeholder="Nimi">
-        <select id="sex">
-          <option value="">Sugu</option>
-          <option>Mära</option>
-          <option>Täkk</option>
-          <option>Ruun</option>
-        </select>
-        <input id="birth_date" type="text" placeholder="Sünnikuupäev" onfocus="this.type='date'" onblur="if(!this.value)this.type='text'">
-        <input id="ueln" placeholder="UELN">
-        <input id="color" placeholder="Praegune värvus">
-        <input id="birth_color" placeholder="Sünnivärvus">
+  <div class="tabs">
+    <button id="tabHorses" onclick="showMainTab('horses')">Hobused</button>
+    <button id="tabBreeding" class="off" onclick="showMainTab('breeding')">Aretus</button>
+  </div>
+
+  <div id="horsesMain">
+    <div id="listView">
+      <div class="card">
+        <h3>Lisa hobune</h3>
+        <div class="grid">
+          <input id="name" placeholder="Nimi">
+          <select id="sex">
+            <option value="">Sugu</option>
+            <option>Mära</option>
+            <option>Täkk</option>
+            <option>Ruun</option>
+          </select>
+          <input id="birth_date" type="text" placeholder="Sünnikuupäev" onfocus="this.type='date'" onblur="if(!this.value)this.type='text'">
+          <input id="ueln" placeholder="UELN">
+          <input id="color" placeholder="Praegune värvus">
+          <input id="birth_color" placeholder="Sünnivärvus">
+        </div>
+        <button onclick="addHorse()">Lisa hobune</button>
       </div>
-      <button onclick="addHorse()">Lisa hobune</button>
+
+      <div class="card">
+        <h3>Hobused</h3>
+        <input class="search" id="search" placeholder="Otsi hobust..." oninput="renderHorses()">
+        <div id="horses"></div>
+      </div>
     </div>
 
-    <div class="card">
-      <h3>Hobused</h3>
-      <input class="search" id="search" placeholder="Otsi hobust..." oninput="renderHorses()">
-      <div id="horses"></div>
+    <div id="detailView" style="display:none">
+      <button class="light" onclick="backToList()">← Tagasi hobuste nimekirja</button>
+
+      <div class="card">
+        <div class="top">
+          <div>
+            <div class="horseName" id="detailName"></div>
+            <div class="muted" id="detailSub"></div>
+          </div>
+        </div>
+        <div id="detail"></div>
+
+        <div class="actions">
+          <button class="light" onclick="editHorse()">Muuda</button>
+          <button class="danger" onclick="deleteHorse()">Kustuta</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3>🧬 Sugupuu</h3>
+        <div class="muted" style="margin-bottom:8px">Libista tabelit küljele. Kliki lahtrile, et muuta.</div>
+        <div id="pedigreeBox"></div>
+      </div>
     </div>
   </div>
 
-  <div id="detailView" style="display:none">
-    <button class="light" onclick="backToList()">← Tagasi hobuste nimekirja</button>
+  <div id="breedingMain" style="display:none">
+    <div class="grid">
+      <div class="card">
+        <h3>🧬 Kombineeri</h3>
+        <p class="muted">Vali täkk ja mära. Äpp koostab tulevase varsa sugupuu nende olemasolevate sugupuude põhjal.</p>
 
-    <div class="card">
-      <div class="top">
-        <div>
-          <div class="horseName" id="detailName"></div>
-          <div class="muted" id="detailSub"></div>
-        </div>
+        <h3>🐎 Täkud</h3>
+        <div id="stallionList" class="selectRow"></div>
+
+        <h3 style="margin-top:14px">🐴 Märad</h3>
+        <div id="mareList" class="selectRow"></div>
+
+        <button onclick="combineBreeding()">Kombineeri</button>
       </div>
-      <div id="detail"></div>
 
-      <div class="actions">
-        <button class="light" onclick="editHorse()">Muuda</button>
-        <button class="danger" onclick="deleteHorse()">Kustuta</button>
+      <div class="card">
+        <h3>🐴 Varsa sugupuu</h3>
+        <div id="foalResult" class="muted">Vali täkk ja mära ning vajuta “Kombineeri”.</div>
       </div>
-    </div>
-
-    <div class="card">
-      <h3>🧬 Sugupuu</h3>
-      <div class="muted" style="margin-bottom:8px">Libista tabelit küljele. Kliki lahtrile, et muuta.</div>
-      <div id="pedigreeBox"></div>
     </div>
   </div>
 </div>
@@ -159,15 +193,25 @@ function ageText(d){
   if(m<0) m=0;
   return `${Math.floor(m/12)} a ${m%12} k`;
 }
-
-async function register(){
-  const {error}=await client.auth.signUp({email:email.value,password:password.value});
+  async function register(){
+  const {error}=await client.auth.signUp({
+    email:email.value,
+    password:password.value
+  });
   msg.innerText=error?error.message:"Konto loodud. Logi sisse.";
 }
 
 async function login(){
-  const {data,error}=await client.auth.signInWithPassword({email:email.value,password:password.value});
-  if(error){msg.innerText=error.message;return;}
+  const {data,error}=await client.auth.signInWithPassword({
+    email:email.value,
+    password:password.value
+  });
+
+  if(error){
+    msg.innerText=error.message;
+    return;
+  }
+
   user=data.user;
   showApp();
 }
@@ -179,7 +223,10 @@ async function logout(){
 
 async function checkSession(){
   const {data}=await client.auth.getSession();
-  if(data.session?.user){user=data.session.user;showApp();}
+  if(data.session?.user){
+    user=data.session.user;
+    showApp();
+  }
 }
 checkSession();
 
@@ -190,9 +237,25 @@ function showApp(){
   loadHorses();
 }
 
+function showMainTab(tab){
+  horsesMain.style.display=tab==="horses"?"block":"none";
+  breedingMain.style.display=tab==="breeding"?"block":"none";
+
+  tabHorses.className=tab==="horses"?"":"off";
+  tabBreeding.className=tab==="breeding"?"":"off";
+
+  if(tab==="breeding"){
+    renderBreedingLists();
+  }
+}
+
 async function addHorse(){
   const n=$("name").value.trim();
-  if(!n){alert("Nimi on kohustuslik");return;}
+
+  if(!n){
+    alert("Nimi on kohustuslik");
+    return;
+  }
 
   const {error}=await client.from("horses").insert({
     user_id:user.id,
@@ -204,61 +267,127 @@ async function addHorse(){
     birth_color:$("birth_color").value||null
   });
 
-  if(error){alert(error.message);return;}
+  if(error){
+    alert(error.message);
+    return;
+  }
 
-  ["name","birth_date","ueln","color","birth_color"].forEach(id=>$(id).value="");
+  ["name","birth_date","ueln","color","birth_color"]
+    .forEach(id=>$(id).value="");
+
   $("sex").value="";
+
   loadHorses();
 }
 
 async function loadHorses(){
-  const {data,error}=await client.from("horses")
+  const {data,error}=await client
+    .from("horses")
     .select("*")
     .eq("user_id",user.id)
     .order("created_at",{ascending:false});
 
-  if(error){horses.innerHTML=`<div class="msg err">${error.message}</div>`;return;}
+  if(error){
+    horses.innerHTML=`<div class="msg err">${error.message}</div>`;
+    return;
+  }
+
   horses=data||[];
+
   renderHorses();
+  renderBreedingLists();
 }
 
 function renderHorses(){
+
   const q=($("search")?.value||"").toLowerCase();
-  const filtered=horses.filter(h=>(h.name||"").toLowerCase().includes(q));
+
+  const filtered=horses.filter(h=>
+    (h.name||"").toLowerCase().includes(q)
+  );
 
   $("horses").innerHTML=filtered.map(h=>`
     <div class="card horseCard" onclick="openHorse('${h.id}')">
       <div class="horseName">${h.name||"Nimetu"}</div>
-      <div class="muted">${ageText(h.birth_date)} · ${h.sex||"sugu määramata"}</div>
-      <div class="muted">UELN: ${h.ueln||"—"}</div>
-      <div class="muted">Värvus: ${h.color||"—"} · Sünnivärvus: ${h.birth_color||"—"}</div>
-      <span class="pill">Ava hobuse vaade →</span>
+
+      <div class="muted">
+        ${ageText(h.birth_date)} · ${h.sex||"sugu määramata"}
+      </div>
+
+      <div class="muted">
+        UELN: ${h.ueln||"—"}
+      </div>
+
+      <div class="muted">
+        Värvus: ${h.color||"—"} ·
+        Sünnivärvus: ${h.birth_color||"—"}
+      </div>
+
+      <span class="pill">
+        Ava hobuse vaade →
+      </span>
     </div>
   `).join("") || "<p class='muted'>Hobuseid pole.</p>";
 }
 
 async function openHorse(id){
+
   selectedHorse=horses.find(h=>h.id===id);
+
   if(!selectedHorse)return;
 
   listView.style.display="none";
   detailView.style.display="block";
-  detailName.innerText=selectedHorse.name||"Nimetu";
-  detailSub.innerText=`${ageText(selectedHorse.birth_date)} · ${selectedHorse.sex||"sugu määramata"}`;
+
+  detailName.innerText=
+    selectedHorse.name||"Nimetu";
+
+  detailSub.innerText=
+    `${ageText(selectedHorse.birth_date)}
+    · ${selectedHorse.sex||"sugu määramata"}`;
 
   renderDetail();
+
   await loadPedigree();
-  window.scrollTo({top:0,behavior:"smooth"});
+
+  window.scrollTo({
+    top:0,
+    behavior:"smooth"
+  });
 }
 
 function renderDetail(){
+
   detail.innerHTML=`
-    <div class="row"><span>Sugu</span><b>${selectedHorse.sex||"—"}</b></div>
-    <div class="row"><span>Sünnikuupäev</span><b>${selectedHorse.birth_date||"—"}</b></div>
-    <div class="row"><span>Vanus</span><b>${ageText(selectedHorse.birth_date)}</b></div>
-    <div class="row"><span>UELN</span><b>${selectedHorse.ueln||"—"}</b></div>
-    <div class="row"><span>Värvus</span><b>${selectedHorse.color||"—"}</b></div>
-    <div class="row"><span>Sünnivärvus</span><b>${selectedHorse.birth_color||"—"}</b></div>
+    <div class="row">
+      <span>Sugu</span>
+      <b>${selectedHorse.sex||"—"}</b>
+    </div>
+
+    <div class="row">
+      <span>Sünnikuupäev</span>
+      <b>${selectedHorse.birth_date||"—"}</b>
+    </div>
+
+    <div class="row">
+      <span>Vanus</span>
+      <b>${ageText(selectedHorse.birth_date)}</b>
+    </div>
+
+    <div class="row">
+      <span>UELN</span>
+      <b>${selectedHorse.ueln||"—"}</b>
+    </div>
+
+    <div class="row">
+      <span>Värvus</span>
+      <b>${selectedHorse.color||"—"}</b>
+    </div>
+
+    <div class="row">
+      <span>Sünnivärvus</span>
+      <b>${selectedHorse.birth_color||"—"}</b>
+    </div>
   `;
 }
 
@@ -267,105 +396,3 @@ function backToList(){
   listView.style.display="block";
   selectedHorse=null;
 }
-
-async function editHorse(){
-  if(!selectedHorse)return;
-  const name=prompt("Nimi",selectedHorse.name||""); if(name===null)return;
-  const sex=prompt("Sugu: Mära / Täkk / Ruun",selectedHorse.sex||""); if(sex===null)return;
-  const birth_date=prompt("Sünnikuupäev YYYY-MM-DD",selectedHorse.birth_date||""); if(birth_date===null)return;
-  const ueln=prompt("UELN",selectedHorse.ueln||""); if(ueln===null)return;
-  const color=prompt("Praegune värvus",selectedHorse.color||""); if(color===null)return;
-  const birth_color=prompt("Sünnivärvus",selectedHorse.birth_color||""); if(birth_color===null)return;
-
-  const {error}=await client.from("horses")
-    .update({name,sex:sex||null,birth_date:birth_date||null,ueln:ueln||null,color:color||null,birth_color:birth_color||null})
-    .eq("id",selectedHorse.id)
-    .eq("user_id",user.id);
-
-  if(error){alert(error.message);return;}
-  await loadHorses();
-  openHorse(selectedHorse.id);
-}
-
-async function deleteHorse(){
-  if(!selectedHorse)return;
-  if(!confirm("Kas kustutan hobuse?"))return;
-
-  const {error}=await client.from("horses")
-    .delete()
-    .eq("id",selectedHorse.id)
-    .eq("user_id",user.id);
-
-  if(error){alert(error.message);return;}
-  await loadHorses();
-  backToList();
-}
-
-async function loadPedigree(){
-  const {data,error}=await client.from("horse_pedigree")
-    .select("*")
-    .eq("user_id",user.id)
-    .eq("horse_id",selectedHorse.id);
-
-  if(error){pedigreeBox.innerHTML=`<div class="msg err">${error.message}</div>`;return;}
-
-  pedigree={};
-  (data||[]).forEach(p=>pedigree[p.position_key]=p.name);
-  pedigree.self=selectedHorse.name||"Nimetu";
-  renderPedigree();
-}
-
-function cell(key,rowspan){
-  return `<td ${rowspan?`rowspan="${rowspan}"`:""} onclick="editPed('${key}')">
-    <div class="pedLabel">${labels[key]||""}</div>
-    <div class="pedName">${pedigree[key]||"—"}</div>
-  </td>`;
-}
-
-function renderPedigree(){
-  pedigreeBox.innerHTML=`
-  <div class="pedigreeWrap">
-    <table class="pedigreeTable">
-      <tr>${cell("self",8)}${cell("sire",4)}${cell("sire_sire",2)}${cell("sire_sire_sire",1)}</tr>
-      <tr>${cell("sire_sire_dam",1)}</tr>
-      <tr>${cell("sire_dam",2)}${cell("sire_dam_sire",1)}</tr>
-      <tr>${cell("sire_dam_dam",1)}</tr>
-      <tr>${cell("dam",4)}${cell("dam_sire",2)}${cell("dam_sire_sire",1)}</tr>
-      <tr>${cell("dam_sire_dam",1)}</tr>
-      <tr>${cell("dam_dam",2)}${cell("dam_dam_sire",1)}</tr>
-      <tr>${cell("dam_dam_dam",1)}</tr>
-    </table>
-  </div>`;
-}
-
-async function editPed(key){
-  if(key==="self"){alert("Hobuse nime muuda hobuse üldandmetest.");return;}
-
-  const name=prompt(labels[key]||key,pedigree[key]||"");
-  if(name===null)return;
-
-  const {data:existing}=await client.from("horse_pedigree")
-    .select("id")
-    .eq("user_id",user.id)
-    .eq("horse_id",selectedHorse.id)
-    .eq("position_key",key)
-    .maybeSingle();
-
-  let error;
-  if(existing){
-    ({error}=await client.from("horse_pedigree").update({name}).eq("id",existing.id));
-  }else{
-    ({error}=await client.from("horse_pedigree").insert({
-      user_id:user.id,
-      horse_id:selectedHorse.id,
-      position_key:key,
-      name
-    }));
-  }
-
-  if(error){alert(error.message);return;}
-  await loadPedigree();
-}
-</script>
-</body>
-</html>
