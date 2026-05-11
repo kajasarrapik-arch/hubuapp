@@ -6,19 +6,24 @@
 <title>Hobuapp</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
-body{font-family:Arial;padding:20px;background:#f8fafc;color:#0f172a}
-.card{background:white;border:1px solid #ddd;border-radius:14px;padding:16px;margin:12px 0}
-input,button{width:100%;padding:12px;margin:6px 0;border-radius:10px;border:1px solid #ccc;font-size:16px;box-sizing:border-box}
+body{font-family:Arial;margin:0;background:#f8fafc;color:#0f172a}
+.wrap{padding:16px;max-width:900px;margin:auto}
+.card{background:white;border:1px solid #e2e8f0;border-radius:18px;padding:14px;margin:12px 0;overflow:hidden}
+input,button{width:100%;padding:12px;margin:6px 0;border-radius:12px;border:1px solid #cbd5e1;font-size:16px;box-sizing:border-box}
 button{background:#111827;color:white;font-weight:bold}
-button.light{background:white;color:#111827}
+button.light{background:white;color:#111827;border:1px solid #cbd5e1}
 .muted{color:#64748b;font-size:13px}
-.horse{cursor:pointer}
-.ped{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;overflow-x:auto}
-.ped div{border:1px solid #cbd5e1;border-radius:10px;padding:10px;background:#f8fafc;text-align:center;min-width:120px}
+.horseName{font-size:20px;font-weight:900}
+.pedigreeWrap{width:100%;overflow-x:auto;border:1px solid #cbd5e1;border-radius:16px;background:white;-webkit-overflow-scrolling:touch}
+.pedigreeTable{border-collapse:collapse;width:720px;min-width:720px;table-layout:fixed;font-size:12px}
+.pedigreeTable td{border:1px solid #94a3b8;padding:8px;text-align:center;vertical-align:middle;background:#f8fafc;width:180px;word-break:break-word}
+.pedigreeTable tr:nth-child(even) td{background:white}
+.pedName{font-weight:900;text-transform:uppercase}
+.pedHint{font-size:12px;color:#64748b;margin-bottom:8px}
 </style>
 </head>
 <body>
-
+<div class="wrap">
 <h1>🐎 Hobuapp</h1>
 
 <div id="auth" class="card">
@@ -26,13 +31,11 @@ button.light{background:white;color:#111827}
   <input id="password" type="password" placeholder="Parool">
   <button onclick="login()">Logi sisse</button>
   <button class="light" onclick="register()">Registreeri</button>
-  <p id="msg"></p>
+  <p id="msg" class="muted"></p>
 </div>
 
 <div id="app" style="display:none">
-  <div class="card">
-    <button class="light" onclick="logout()">Logi välja</button>
-  </div>
+  <button class="light" onclick="logout()">Logi välja</button>
 
   <div id="listView">
     <div class="card">
@@ -41,7 +44,6 @@ button.light{background:white;color:#111827}
       <button onclick="addHorse()">Lisa hobune</button>
     </div>
 
-    <h3>Hobused</h3>
     <div id="horses"></div>
   </div>
 
@@ -49,16 +51,16 @@ button.light{background:white;color:#111827}
     <button class="light" onclick="backToList()">← Tagasi</button>
 
     <div class="card">
-      <h2 id="detailName"></h2>
-      <p class="muted">Hobuse detailvaade</p>
+      <div class="horseName" id="detailName"></div>
     </div>
 
     <div class="card">
       <h3>🧬 Sugupuu</h3>
-      <p class="muted">Kliki lahtrile, et nime lisada või muuta.</p>
-      <div id="pedigree" class="ped"></div>
+      <div class="pedHint">Libista tabelit küljele. Kliki lahtrile, et muuta.</div>
+      <div id="pedigreeBox"></div>
     </div>
   </div>
+</div>
 </div>
 
 <script>
@@ -67,38 +69,46 @@ const client = supabase.createClient(
   "sb_publishable_IT_QqzN5KGNHYJEVBmxouw_-NmtleIY"
 );
 
-let user = null;
-let horses = [];
-let selectedHorse = null;
-let pedigree = {};
+let user=null;
+let horses=[];
+let selectedHorse=null;
+let pedigree={};
 
-const pedLabels = {
-  sire_sire: "Isa isa",
-  sire: "Isa",
-  sire_dam: "Isa ema",
-  dam_sire: "Ema isa",
-  dam: "Ema",
-  dam_dam: "Ema ema"
+const labels={
+  self:"Hobune",
+  sire:"Isa",
+  dam:"Ema",
+  sire_sire:"Isa isa",
+  sire_dam:"Isa ema",
+  dam_sire:"Ema isa",
+  dam_dam:"Ema ema",
+  sire_sire_sire:"Isa isa isa",
+  sire_sire_dam:"Isa isa ema",
+  sire_dam_sire:"Isa ema isa",
+  sire_dam_dam:"Isa ema ema",
+  dam_sire_sire:"Ema isa isa",
+  dam_sire_dam:"Ema isa ema",
+  dam_dam_sire:"Ema ema isa",
+  dam_dam_dam:"Ema ema ema"
 };
 
 async function register(){
-  const email=document.getElementById("email").value;
-  const password=document.getElementById("password").value;
-  const {error}=await client.auth.signUp({email,password});
-  document.getElementById("msg").innerText = error ? error.message : "Konto loodud. Proovi nüüd sisse logida.";
+  const {error}=await client.auth.signUp({
+    email:email.value,
+    password:password.value
+  });
+  msg.innerText=error?error.message:"Konto loodud. Logi sisse.";
 }
 
 async function login(){
-  const email=document.getElementById("email").value;
-  const password=document.getElementById("password").value;
-  const {data,error}=await client.auth.signInWithPassword({email,password});
-  if(error){
-    document.getElementById("msg").innerText=error.message;
-    return;
-  }
+  const {data,error}=await client.auth.signInWithPassword({
+    email:email.value,
+    password:password.value
+  });
+  if(error){msg.innerText=error.message;return;}
   user=data.user;
-  document.getElementById("auth").style.display="none";
-  document.getElementById("app").style.display="block";
+  auth.style.display="none";
+  app.style.display="block";
   loadHorses();
 }
 
@@ -108,13 +118,13 @@ async function logout(){
 }
 
 async function addHorse(){
-  const name=document.getElementById("horseName").value;
+  if(!horseName.value.trim()) return;
   const {error}=await client.from("horses").insert({
     user_id:user.id,
-    name:name
+    name:horseName.value.trim()
   });
-  if(error){ alert(error.message); return; }
-  document.getElementById("horseName").value="";
+  if(error){alert(error.message);return;}
+  horseName.value="";
   loadHorses();
 }
 
@@ -123,68 +133,99 @@ async function loadHorses(){
     .select("*")
     .eq("user_id",user.id);
 
-  if(error){ alert(error.message); return; }
+  if(error){alert(error.message);return;}
 
-  horses=data;
-  document.getElementById("horses").innerHTML=data.map(h=>`
-    <div class="card horse" onclick="openHorse('${h.id}')">
-      <b>${h.name || "Nimetu"}</b>
+  horses=data||[];
+  document.getElementById("horses").innerHTML=horses.map(h=>`
+    <div class="card" onclick="openHorse('${h.id}')">
+      <div class="horseName">${h.name||"Nimetu"}</div>
       <div class="muted">Ava hobuse vaade →</div>
     </div>
-  `).join("");
+  `).join("") || "<p>Hobuseid pole veel.</p>";
 }
 
 async function openHorse(id){
-  selectedHorse = horses.find(h=>h.id===id);
-  document.getElementById("listView").style.display="none";
-  document.getElementById("detailView").style.display="block";
-  document.getElementById("detailName").innerText=selectedHorse.name || "Nimetu";
+  selectedHorse=horses.find(h=>h.id===id);
+  listView.style.display="none";
+  detailView.style.display="block";
+  detailName.innerText=selectedHorse.name||"Nimetu";
   await loadPedigree();
 }
 
 function backToList(){
-  document.getElementById("detailView").style.display="none";
-  document.getElementById("listView").style.display="block";
+  detailView.style.display="none";
+  listView.style.display="block";
 }
 
 async function loadPedigree(){
   const {data,error}=await client.from("horse_pedigree")
     .select("*")
-    .eq("horse_id",selectedHorse.id)
-    .eq("user_id",user.id);
+    .eq("user_id",user.id)
+    .eq("horse_id",selectedHorse.id);
 
-  if(error){
-    alert("Sugupuu laadimine ebaõnnestus: " + error.message);
-    return;
-  }
+  if(error){alert(error.message);return;}
 
   pedigree={};
-  data.forEach(p=>pedigree[p.position_key]=p.name);
+  (data||[]).forEach(p=>pedigree[p.position_key]=p.name);
+  pedigree.self=selectedHorse.name||"Nimetu";
   renderPedigree();
 }
 
-function renderPedigree(){
-  document.getElementById("pedigree").innerHTML = Object.keys(pedLabels).map(key=>`
-    <div onclick="editPedigree('${key}')">
-      <small>${pedLabels[key]}</small><br>
-      <b>${pedigree[key] || "—"}</b>
-    </div>
-  `).join("");
+function cell(key,rowspan){
+  return `<td ${rowspan?`rowspan="${rowspan}"`:""} onclick="editPed('${key}')">
+    <div class="muted">${labels[key]||""}</div>
+    <div class="pedName">${pedigree[key]||"—"}</div>
+  </td>`;
 }
 
-async function editPedigree(key){
-  const name=prompt(pedLabels[key], pedigree[key] || "");
+function renderPedigree(){
+  pedigreeBox.innerHTML=`
+  <div class="pedigreeWrap">
+    <table class="pedigreeTable">
+      <tr>
+        ${cell("self",8)}
+        ${cell("sire",4)}
+        ${cell("sire_sire",2)}
+        ${cell("sire_sire_sire",1)}
+      </tr>
+      <tr>${cell("sire_sire_dam",1)}</tr>
+      <tr>
+        ${cell("sire_dam",2)}
+        ${cell("sire_dam_sire",1)}
+      </tr>
+      <tr>${cell("sire_dam_dam",1)}</tr>
+      <tr>
+        ${cell("dam",4)}
+        ${cell("dam_sire",2)}
+        ${cell("dam_sire_sire",1)}
+      </tr>
+      <tr>${cell("dam_sire_dam",1)}</tr>
+      <tr>
+        ${cell("dam_dam",2)}
+        ${cell("dam_dam_sire",1)}
+      </tr>
+      <tr>${cell("dam_dam_dam",1)}</tr>
+    </table>
+  </div>`;
+}
+
+async function editPed(key){
+  if(key==="self"){
+    alert("Hobuse nime muuda hiljem hobuse üldandmetest.");
+    return;
+  }
+
+  const name=prompt(labels[key]||key,pedigree[key]||"");
   if(name===null) return;
 
   const {data:existing}=await client.from("horse_pedigree")
     .select("id")
-    .eq("horse_id",selectedHorse.id)
     .eq("user_id",user.id)
+    .eq("horse_id",selectedHorse.id)
     .eq("position_key",key)
     .maybeSingle();
 
   let error;
-
   if(existing){
     ({error}=await client.from("horse_pedigree")
       .update({name})
@@ -198,14 +239,9 @@ async function editPedigree(key){
     }));
   }
 
-  if(error){
-    alert("Sugupuu salvestamine ebaõnnestus: " + error.message);
-    return;
-  }
-
+  if(error){alert(error.message);return;}
   await loadPedigree();
 }
 </script>
-
 </body>
 </html>
